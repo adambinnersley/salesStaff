@@ -199,7 +199,7 @@ class SalesTeam
      */
     public function viewHours()
     {
-        $hours = $this->db->selectAll($this->StaffHoursTable, [], '*', [], 0, 600);
+        $hours = $this->db->selectAll($this->StaffHoursTable, ['active' => 1], '*', [], 0, 600);
         if (!empty($hours)) {
             foreach ($hours as $a => $hour) {
                 $hours[$a]['name'] = $this->getStaffName($hour['staffid']);
