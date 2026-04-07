@@ -98,6 +98,10 @@ class SalesTeam
     {
         $data = [];
         $activestaff = $this->db->query("SELECT `{$this->StaffHoursTable}`.`staffid` FROM `{$this->StaffHoursTable}`, `{$this->StaffTable}` WHERE `{$this->StaffTable}`.`active` = 1 AND `{$this->StaffTable}`.`staffid` = `{$this->StaffHoursTable}`.`staffid` AND `{$this->StaffHoursTable}`.`holiday` = 0;", [], false);
+        if (empty($activestaff)) {
+            $data['next'] = 0;
+            return $data;
+        }
         if (count($activestaff) == 1) {
             $data['next'] = $activestaff[0]['staffid'];
         } else {
@@ -107,7 +111,8 @@ class SalesTeam
             if (isset($nextactive[0]['staffid'])) {
                 $data['next'] = $nextactive[0]['staffid'];
             } else {
-                $data['next'] = $this->db->query("SELECT `{$this->StaffHoursTable}`.`staffid` FROM `{$this->StaffHoursTable}`, `{$this->StaffTable}` WHERE `{$this->StaffTable}`.`active` = 1 AND `{$this->StaffTable}`.`staffid` = `{$this->StaffHoursTable}`.`staffid` AND `{$this->StaffHoursTable}`.`{$dateInfo['day']}` > ? AND `{$this->StaffHoursTable}`.`holiday` = 0 ORDER BY `{$this->StaffHoursTable}`.`staffid` ASC LIMIT 1;", [$dateInfo['time']], false)[0]['staffid'];
+                $result = $this->db->query("SELECT `{$this->StaffHoursTable}`.`staffid` FROM `{$this->StaffHoursTable}`, `{$this->StaffTable}` WHERE `{$this->StaffTable}`.`active` = 1 AND `{$this->StaffTable}`.`staffid` = `{$this->StaffHoursTable}`.`staffid` AND `{$this->StaffHoursTable}`.`{$dateInfo['day']}` > ? AND `{$this->StaffHoursTable}`.`holiday` = 0 ORDER BY `{$this->StaffHoursTable}`.`staffid` ASC LIMIT 1;", [$dateInfo['time']], false);
+                $data['next'] = isset($result[0]['staffid']) ? $result[0]['staffid'] : $this->staffDefault['id'];
             }
         }
         return $data;
@@ -119,12 +124,15 @@ class SalesTeam
      * @param string $time The current time of the day you are checking if anyone is active after
      * @return array Returns and array of both 'day' and 'time' to get the next active staff member
      */
-    public function dayAndTime($day, $time)
+    public function dayAndTime($day, $time, $depth = 0)
     {
+        if ($depth >= 7) {
+            return ['day' => strtolower(date('l')), 'time' => '00:00:01'];
+        }
         $dateInfo = [];
-        $endtime = $this->db->query("SELECT `{$this->StaffHoursTable}`.`{$day}` FROM `{$this->StaffHoursTable}`, `{$this->StaffTable}` WHERE `{$this->StaffTable}`.`active` = 1 AND `{$this->StaffHoursTable}`.`holiday` = 0 ORDER BY `{$day}` DESC LIMIT 1;", [], 600);
+        $endtime = $this->db->query("SELECT `{$this->StaffHoursTable}`.`{$day}` FROM `{$this->StaffHoursTable}`, `{$this->StaffTable}` WHERE `{$this->StaffTable}`.`active` = 1 AND `{$this->StaffTable}`.`staffid` = `{$this->StaffHoursTable}`.`staffid` AND `{$this->StaffHoursTable}`.`holiday` = 0 ORDER BY `{$day}` DESC LIMIT 1;", [], 600);
         if (!isset($endtime[0][$day]) || $time > $endtime[0][$day]) {
-            return $this->dayAndTime($this->getDay($this->getDayNo($day) + 1), "00:00:01");
+            return $this->dayAndTime($this->getDay($this->getDayNo($day) + 1), "00:00:01", $depth + 1);
         } else {
             $dateInfo['day'] = $day;
             $dateInfo['time'] = $time;
